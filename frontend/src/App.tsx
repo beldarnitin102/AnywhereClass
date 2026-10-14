@@ -26,7 +26,7 @@ function App() {
 
   const loadTasks = useCallback(async () => {
     try {
-      const response = await fetch(`${API}/api/tasks`);
+      const response = await fetch(`${API}/api/v1/tasks`);
       if (!response.ok) throw new Error("Could not load tasks.");
       setTasks(await response.json());
     } catch {
@@ -48,7 +48,7 @@ function App() {
     setError("");
 
     try {
-      const response = await fetch(`${API}/api/tasks`, {
+      const response = await fetch(`${API}/api/v1/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ command: command.trim() }),
@@ -76,7 +76,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `${API}/api/tasks/${taskId}/decision`,
+        `${API}/api/v1/tasks/${taskId}/decision`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
