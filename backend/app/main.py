@@ -1,6 +1,4 @@
 
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,23 +8,11 @@ from app.core.config import (
     APP_VERSION,
     FRONTEND_ORIGIN,
 )
-from app.db.base import Base
-from app.db.session import engine
-from app import models  # Registers SQLAlchemy models
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Temporary for local development only.
-    # Alembic migrations will replace this schema creation.
-    Base.metadata.create_all(bind=engine)
-    yield
 
 
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
-    lifespan=lifespan,
 )
 
 app.add_middleware(
