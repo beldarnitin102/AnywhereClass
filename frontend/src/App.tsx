@@ -1,122 +1,220 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+import { useCallback, useEffect, useState } from "react";
+import "./App.css";
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+const API = "http://127.0.0.1:8000";
 
-      <div className="ticks"></div>
+type Task = {
+  id: string;
+  command: string;
+  status: string;
+  created_at: string;
+  plan: string[];
+  mode: string;
+};
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function readableStatus(status: string) {
+  return status.replaceAll("_", " ");
 }
 
-export default App
+function App() {
+  const [command, setCommand] = useState("");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadTasks = useCallback(async () => {
+    try {
+      const response = await fetch(`${API}/api/tasks`);
+      if (!response.ok) throw new Error("Could not load tasks.");
+      setTasks(await response.json());
+    } catch {
+      setError("Cannot connect to the backend. Is FastAPI running?");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadTasks();
+  }, [loadTasks]);
+
+  async function createTask(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (command.trim().length < 5) return;
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API}/api/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: command.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Could not create the task.");
+      }
+
+      const task: Task = await response.json();
+      setTasks((previous) => [task, ...previous]);
+      setCommand("");
+    } catch {
+      setError("Task creation failed. Check that the backend is running.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function reviewTask(
+    taskId: string,
+    decision: "approve" | "reject",
+  ) {
+    setError("");
+
+    try {
+      const response = await fetch(
+        `${API}/api/tasks/${taskId}/decision`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail ?? "Could not review task.");
+      }
+
+      setTasks((previous) =>
+        previous.map((task) => task.id === taskId ? result : task),
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Something went wrong.",
+      );
+    }
+  }
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <a className="brand" href="/">
+          <span className="brand-icon">A</span>
+          <span>ActionPilot <small>AI WORKSPACE</small></span>
+        </a>
+        <span className="environment">
+          <span className="status-dot" /> Local development
+        </span>
+      </header>
+
+      <section className="hero">
+        <p className="eyebrow">YOUR AI ACTION WORKSPACE</p>
+        <h1>What would you like<br />to get done?</h1>
+        <p className="hero-copy">
+          Describe a task in plain language. Review the plan before
+          approving any action.
+        </p>
+
+        <form className="command-form" onSubmit={createTask}>
+          <label htmlFor="command">Your instruction</label>
+          <textarea
+            id="command"
+            value={command}
+            onChange={(event) => setCommand(event.target.value)}
+            placeholder="For example: Prepare a 10-question Data Structures quiz..."
+            maxLength={2000}
+            rows={4}
+          />
+          <div className="form-footer">
+            <span>{command.length}/2000 characters</span>
+            <button
+              type="submit"
+              disabled={submitting || command.trim().length < 5}
+            >
+              {submitting ? "Preparing..." : "Prepare task →"}
+            </button>
+          </div>
+        </form>
+
+        <div className="safety-note">
+          <span>✓</span>
+          Nothing is published or executed in this simulation.
+        </div>
+      </section>
+
+      {error && <div className="error-banner" role="alert">{error}</div>}
+
+      <section className="tasks-section">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">WORKFLOW</p>
+            <h2>Recent tasks</h2>
+          </div>
+          <span className="task-count">{tasks.length} tasks</span>
+        </div>
+
+        {loading ? (
+          <p className="empty-state">Loading tasks...</p>
+        ) : tasks.length === 0 ? (
+          <div className="empty-state">
+            <span className="empty-icon">↗</span>
+            <h3>Your workspace is ready</h3>
+            <p>Enter your first instruction above to create a task.</p>
+          </div>
+        ) : (
+          <div className="task-list">
+            {tasks.map((task) => (
+              <article className="task-card" key={task.id}>
+                <div className="task-card-header">
+                  <span className="task-mode">SIMULATION</span>
+                  <span className={`status status-${task.status}`}>
+                    {readableStatus(task.status)}
+                  </span>
+                </div>
+
+                <h3>{task.command}</h3>
+                <p className="task-date">
+                  {new Date(task.created_at).toLocaleString()}
+                </p>
+
+                <div className="plan">
+                  <h4>Proposed workflow</h4>
+                  <ol>
+                    {task.plan.map((item) => <li key={item}>{item}</li>)}
+                  </ol>
+                </div>
+
+                {task.status === "awaiting_approval" && (
+                  <div className="task-actions">
+                    <button
+                      className="button-secondary"
+                      onClick={() => void reviewTask(task.id, "reject")}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => void reviewTask(task.id, "approve")}
+                    >
+                      Approve simulation
+                    </button>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <footer>
+        ActionPilot · Development prototype · Moodle not connected
+      </footer>
+    </main>
+  );
+}
+
+export default App;
