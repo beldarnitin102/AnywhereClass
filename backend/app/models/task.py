@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, JSON, String, Text
 
 from app.db.base import Base
 
@@ -12,6 +13,12 @@ class TaskRecord(Base):
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True
+    )
+    owner_id: Mapped[str | None] = mapped_column(
+    String(36),
+    ForeignKey("users.id", ondelete="RESTRICT"),
+    nullable=True,
+    index=True,
     )
     command: Mapped[str] = mapped_column(
         Text, nullable=False

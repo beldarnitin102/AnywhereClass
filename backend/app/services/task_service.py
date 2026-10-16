@@ -12,6 +12,7 @@ from app.schemas.task import CreateTaskRequest
 def create_task(
     db: Session,
     request: CreateTaskRequest,
+    owner_id: str,
 ) -> TaskRecord:
     command = request.command.strip()
 
@@ -23,6 +24,7 @@ def create_task(
 
     task = TaskRecord(
         id=str(uuid4()),
+        owner_id=owner_id,
         command=command,
         status="awaiting_approval",
         plan=[
@@ -40,6 +42,7 @@ def decide_task(
     db: Session,
     task_id: str,
     decision: str,
+    owner_id: str,
 ) -> TaskRecord:
     if decision not in {"approve", "reject"}:
         raise HTTPException(
@@ -47,13 +50,11 @@ def decide_task(
             detail="Decision must be approve or reject.",
         )
 
-    task = task_repository.get_task(db, task_id)
+    task = task_repository.get_task(db, task_id, owner_id)
 
     if task is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Task not found.",
-        )
+        # Same response for missing and other users' tasks.
+        raise HTTPException(status_code=404, detail="Task not found.")
 
     if task.status != "awaiting_approval":
         raise HTTPException(
@@ -62,9 +63,7 @@ def decide_task(
         )
 
     task.status = (
-        "approved_simulation"
-        if decision == "approve"
-        else "rejected"
+        "approved_simulation" if decision == "approve" else "rejected"
     )
 
     return task_repository.save_task(db, task)
