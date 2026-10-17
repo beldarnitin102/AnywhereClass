@@ -1,21 +1,10 @@
-
+import type { Task } from "./types/task";
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
+import TaskCard from "./components/TaskCard";
+import CommandForm from "./components/CommandForm";
 
 const API = "http://127.0.0.1:8000";
-
-type Task = {
-  id: string;
-  command: string;
-  status: string;
-  created_at: string;
-  plan: string[];
-  mode: string;
-};
-
-function readableStatus(status: string) {
-  return status.replaceAll("_", " ");
-}
 
 function App() {
   const [command, setCommand] = useState("");
@@ -68,21 +57,15 @@ function App() {
     }
   }
 
-  async function reviewTask(
-    taskId: string,
-    decision: "approve" | "reject",
-  ) {
+  async function reviewTask(taskId: string, decision: "approve" | "reject") {
     setError("");
 
     try {
-      const response = await fetch(
-        `${API}/api/v1/tasks/${taskId}/decision`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ decision }),
-        },
-      );
+      const response = await fetch(`${API}/api/v1/tasks/${taskId}/decision`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision }),
+      });
 
       const result = await response.json();
 
@@ -91,7 +74,7 @@ function App() {
       }
 
       setTasks((previous) =>
-        previous.map((task) => task.id === taskId ? result : task),
+        previous.map((task) => (task.id === taskId ? result : task)),
       );
     } catch (error) {
       setError(
@@ -105,7 +88,9 @@ function App() {
       <header className="topbar">
         <a className="brand" href="/">
           <span className="brand-icon">A</span>
-          <span>ActionPilot <small>AI WORKSPACE</small></span>
+          <span>
+            ActionPilot <small>AI WORKSPACE</small>
+          </span>
         </a>
         <span className="environment">
           <span className="status-dot" /> Local development
@@ -114,32 +99,22 @@ function App() {
 
       <section className="hero">
         <p className="eyebrow">YOUR AI ACTION WORKSPACE</p>
-        <h1>What would you like<br />to get done?</h1>
+        <h1>
+          What would you like
+          <br />
+          to get done?
+        </h1>
         <p className="hero-copy">
-          Describe a task in plain language. Review the plan before
-          approving any action.
+          Describe a task in plain language. Review the plan before approving
+          any action.
         </p>
 
-        <form className="command-form" onSubmit={createTask}>
-          <label htmlFor="command">Your instruction</label>
-          <textarea
-            id="command"
-            value={command}
-            onChange={(event) => setCommand(event.target.value)}
-            placeholder="For example: Prepare a 10-question Data Structures quiz..."
-            maxLength={2000}
-            rows={4}
-          />
-          <div className="form-footer">
-            <span>{command.length}/2000 characters</span>
-            <button
-              type="submit"
-              disabled={submitting || command.trim().length < 5}
-            >
-              {submitting ? "Preparing..." : "Prepare task →"}
-            </button>
-          </div>
-        </form>
+        <CommandForm
+          command={command}
+          submitting={submitting}
+          onCommandChange={setCommand}
+          onSubmit={createTask}
+        />
 
         <div className="safety-note">
           <span>✓</span>
@@ -147,7 +122,11 @@ function App() {
         </div>
       </section>
 
-      {error && <div className="error-banner" role="alert">{error}</div>}
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
 
       <section className="tasks-section">
         <div className="section-heading">
@@ -167,44 +146,15 @@ function App() {
             <p>Enter your first instruction above to create a task.</p>
           </div>
         ) : (
-          <div className="task-list">
+          <div className="space-y-4">
             {tasks.map((task) => (
-              <article className="task-card" key={task.id}>
-                <div className="task-card-header">
-                  <span className="task-mode">SIMULATION</span>
-                  <span className={`status status-${task.status}`}>
-                    {readableStatus(task.status)}
-                  </span>
-                </div>
-
-                <h3>{task.command}</h3>
-                <p className="task-date">
-                  {new Date(task.created_at).toLocaleString()}
-                </p>
-
-                <div className="plan">
-                  <h4>Proposed workflow</h4>
-                  <ol>
-                    {task.plan.map((item) => <li key={item}>{item}</li>)}
-                  </ol>
-                </div>
-
-                {task.status === "awaiting_approval" && (
-                  <div className="task-actions">
-                    <button
-                      className="button-secondary"
-                      onClick={() => void reviewTask(task.id, "reject")}
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() => void reviewTask(task.id, "approve")}
-                    >
-                      Approve simulation
-                    </button>
-                  </div>
-                )}
-              </article>
+              <TaskCard
+                key={task.id}
+                task={task}
+                onReview={(taskId, decision) => {
+                  void reviewTask(taskId, decision);
+                }}
+              />
             ))}
           </div>
         )}
