@@ -84,6 +84,7 @@ function RegisterPage() {
               autoComplete="new-password"
               required
               value={password}
+              minLength={12}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               placeholder="Create a password"

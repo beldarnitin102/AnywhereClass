@@ -1,9 +1,18 @@
+
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { loginUser } from "../services/api";
+
+type LocationState = {
+  message?: string;
+};
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const routeState = location.state as LocationState | null;
+  const successMessage = routeState?.message;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,10 +27,9 @@ function LoginPage() {
     try {
       const token = await loginUser(email.trim(), password);
 
-      // Keep the token for this browser tab's session.
       sessionStorage.setItem("access_token", token.access_token);
 
-      navigate("/", { replace: true });
+      navigate("/", { replace: true, state: null });
     } catch (error) {
       setError(error instanceof Error ? error.message : "Login failed.");
     } finally {
@@ -36,13 +44,24 @@ function LoginPage() {
           <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
             ActionPilot
           </p>
+
           <h1 className="mt-3 text-2xl font-bold text-slate-900">
             Welcome back
           </h1>
+
           <p className="mt-2 text-sm text-slate-500">
             Sign in to manage your tasks securely.
           </p>
         </div>
+
+        {successMessage && (
+          <div
+            role="status"
+            className="mb-5 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700"
+          >
+            {successMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -52,6 +71,7 @@ function LoginPage() {
             >
               Email address
             </label>
+
             <input
               id="email"
               type="email"
@@ -71,6 +91,7 @@ function LoginPage() {
             >
               Password
             </label>
+
             <input
               id="password"
               type="password"

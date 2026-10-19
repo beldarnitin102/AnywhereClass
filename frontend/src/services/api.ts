@@ -1,4 +1,3 @@
-
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 export type AuthToken = {
@@ -52,9 +51,7 @@ export async function apiRequest<T>(
   return data as T;
 }
 
-export async function registerUser(
-  data: RegisterData,
-): Promise<CurrentUser> {
+export async function registerUser(data: RegisterData): Promise<CurrentUser> {
   return apiRequest<CurrentUser>("/api/v1/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -66,17 +63,15 @@ export async function loginUser(
   email: string,
   password: string,
 ): Promise<AuthToken> {
-  const body = new URLSearchParams({
-    username: email,
-    password,
-  });
-
   return apiRequest<AuthToken>("/api/v1/auth/login", {
     method: "POST",
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/json",
     },
-    body,
+    body: JSON.stringify({
+      email: email.trim(),
+      password,
+    }),
   });
 }
 
