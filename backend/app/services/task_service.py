@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.task import TaskRecord
 from app.repositories import task_repository
 from app.schemas.task import CreateTaskRequest
+from app.services.ai_planner import PlannerError, generate_plan
 
 
 def create_task(
@@ -22,16 +23,20 @@ def create_task(
             detail="Command must contain at least 5 non-space characters.",
         )
 
+    try:
+        ai_plan = generate_plan(command)
+    except PlannerError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        ) from exc
+
     task = TaskRecord(
         id=str(uuid4()),
         owner_id=owner_id,
         command=command,
         status="awaiting_approval",
-        plan=[
-            "Interpret the requested task",
-            "Validate the intended operation",
-            "Prepare a reviewable action plan",
-        ],
+        plan=ai_plan.proposed_steps,
         mode="simulation",
     )
 
@@ -53,8 +58,10 @@ def decide_task(
     task = task_repository.get_task(db, task_id, owner_id)
 
     if task is None:
-        # Same response for missing and other users' tasks.
-        raise HTTPException(status_code=404, detail="Task not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found.",
+        )
 
     if task.status != "awaiting_approval":
         raise HTTPException(

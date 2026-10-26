@@ -1,4 +1,9 @@
 
+from unittest.mock import patch
+
+from app.schemas.task import AIPlan
+
+
 def authenticated_headers(client, email="teacher@example.com"):
     password = "SecurePassphrase123!"
 
@@ -18,28 +23,52 @@ def authenticated_headers(client, email="teacher@example.com"):
     return {"Authorization": f"Bearer {token}"}
 
 
+def fake_plan(command: str):
+    return AIPlan(
+        intent="Create a practice quiz",
+        required_information=[],
+        proposed_steps=[
+            "Prepare quiz questions",
+            "Validate the proposed quiz",
+        ],
+        requires_teacher_approval=True,
+    )
+
+
 def test_create_task(client):
     headers = authenticated_headers(client)
-    response = client.post(
-        "/api/v1/tasks",
-        json={"command": "Create a practice quiz"},
-        headers=headers,
-    )
+
+    with patch(
+        "app.services.task_service.generate_plan",
+        side_effect=fake_plan,
+    ):
+        response = client.post(
+            "/api/v1/tasks",
+            json={"command": "Create a practice quiz"},
+            headers=headers,
+        )
 
     assert response.status_code == 201
     data = response.json()
     assert data["command"] == "Create a practice quiz"
     assert data["status"] == "awaiting_approval"
-
+    assert data["plan"] == [
+    "Prepare quiz questions",
+    "Validate the proposed quiz",]
 
 def test_list_tasks(client):
     headers = authenticated_headers(client)
 
-    client.post(
-        "/api/v1/tasks",
-        json={"command": "Create a practice quiz"},
-        headers=headers,
-    )
+    with patch(
+        "app.services.task_service.generate_plan",
+        side_effect=fake_plan,
+    ):
+        created = client.post(
+            "/api/v1/tasks",
+            json={"command": "Create a practice quiz"},
+            headers=headers,
+        )
+        assert created.status_code == 201
 
     response = client.get("/api/v1/tasks", headers=headers)
 
@@ -49,11 +78,19 @@ def test_list_tasks(client):
 
 def test_approve_task(client):
     headers = authenticated_headers(client)
-    created = client.post(
-        "/api/v1/tasks",
-        json={"command": "Create a practice quiz"},
-        headers=headers,
-    ).json()
+
+    with patch(
+        "app.services.task_service.generate_plan",
+        side_effect=fake_plan,
+    ):
+        created_response = client.post(
+            "/api/v1/tasks",
+            json={"command": "Create a practice quiz"},
+            headers=headers,
+        )
+
+    assert created_response.status_code == 201
+    created = created_response.json()
 
     response = client.patch(
         f"/api/v1/tasks/{created['id']}/decision",
@@ -67,11 +104,19 @@ def test_approve_task(client):
 
 def test_reject_task(client):
     headers = authenticated_headers(client)
-    created = client.post(
-        "/api/v1/tasks",
-        json={"command": "Create a practice quiz"},
-        headers=headers,
-    ).json()
+
+    with patch(
+        "app.services.task_service.generate_plan",
+        side_effect=fake_plan,
+    ):
+        created_response = client.post(
+            "/api/v1/tasks",
+            json={"command": "Create a practice quiz"},
+            headers=headers,
+        )
+
+    assert created_response.status_code == 201
+    created = created_response.json()
 
     response = client.patch(
         f"/api/v1/tasks/{created['id']}/decision",
@@ -85,11 +130,19 @@ def test_reject_task(client):
 
 def test_invalid_decision(client):
     headers = authenticated_headers(client)
-    created = client.post(
-        "/api/v1/tasks",
-        json={"command": "Create a practice quiz"},
-        headers=headers,
-    ).json()
+
+    with patch(
+        "app.services.task_service.generate_plan",
+        side_effect=fake_plan,
+    ):
+        created_response = client.post(
+            "/api/v1/tasks",
+            json={"command": "Create a practice quiz"},
+            headers=headers,
+        )
+
+    assert created_response.status_code == 201
+    created = created_response.json()
 
     response = client.patch(
         f"/api/v1/tasks/{created['id']}/decision",
@@ -114,11 +167,19 @@ def test_missing_task_returns_404(client):
 
 def test_cannot_review_task_twice(client):
     headers = authenticated_headers(client)
-    created = client.post(
-        "/api/v1/tasks",
-        json={"command": "Create a practice quiz"},
-        headers=headers,
-    ).json()
+
+    with patch(
+        "app.services.task_service.generate_plan",
+        side_effect=fake_plan,
+    ):
+        created_response = client.post(
+            "/api/v1/tasks",
+            json={"command": "Create a practice quiz"},
+            headers=headers,
+        )
+
+    assert created_response.status_code == 201
+    created = created_response.json()
 
     url = f"/api/v1/tasks/{created['id']}/decision"
 
