@@ -51,3 +51,16 @@ def decide_task(
         request.decision,
         current_user.id,
     )
+
+
+@router.post("/{task_id}/execute")
+def execute_task(
+    task_id: str,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+):
+    return task_service.execute_approved_task(
+        db,
+        task_id,
+        current_user.id,
+    )

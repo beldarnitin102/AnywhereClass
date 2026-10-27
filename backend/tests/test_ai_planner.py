@@ -84,3 +84,16 @@ def test_generate_plan_when_response_is_empty():
             match="empty response",
         ):
             generate_plan("Create a practice quiz")
+
+
+def test_generate_plan_when_ollama_times_out():
+    """An Ollama timeout should produce a controlled PlannerError."""
+    with patch(
+        "app.services.ai_planner.httpx.post",
+        side_effect=httpx.ReadTimeout("Request timed out"),
+    ):
+        with pytest.raises(
+            PlannerError,
+            match="local AI planner is unavailable",
+        ):
+            generate_plan("Create a practice quiz")

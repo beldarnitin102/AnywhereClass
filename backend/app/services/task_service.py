@@ -9,6 +9,11 @@ from app.repositories import task_repository
 from app.schemas.task import CreateTaskRequest
 from app.services.ai_planner import PlannerError, generate_plan
 
+from app.services.execution_service import (
+    ExecutionRequest,
+    ExecutionResult,
+    simulate_execution,
+)
 
 def create_task(
     db: Session,
@@ -74,3 +79,43 @@ def decide_task(
     )
 
     return task_repository.save_task(db, task)
+
+
+def execute_approved_task(
+    db: Session,
+    task_id: str,
+    owner_id: str,
+) -> ExecutionResult:
+    """Execute an approved task in simulation mode only."""
+    task = task_repository.get_task(db, task_id, owner_id)
+
+    if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found.",
+        )
+
+    if task.status != "approved_simulation":
+        raise HTTPException(
+            status_code=409,
+            detail="Only approved simulation tasks can be executed.",
+        )
+
+    # Do not let the AI-generated command select arbitrary operations.
+    # This first implementation supports quiz preparation only.
+    command = task.command.lower()
+
+    if "quiz" not in command:
+        raise HTTPException(
+            status_code=422,
+            detail="This command is not supported by the simulation engine.",
+        )
+
+    title = task.command.strip()
+
+    request = ExecutionRequest(
+        action="prepare_quiz",
+        title=title,
+    )
+
+    return simulate_execution(request)
